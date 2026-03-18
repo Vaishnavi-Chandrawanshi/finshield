@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>FinShield — Sign In</title>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-left">
+    <div class="auth-logo">
+      <div class="logo-shield">🛡️</div>
+      <div class="logo-text">
+        <div class="logo-name">FinShield</div>
+        <div class="logo-badge">AI Security</div>
+      </div>
+    </div>
+    <h2 class="auth-tagline">Financial security<br/>powered by <em>AI</em></h2>
+    <p class="auth-desc">Real-time fraud detection using a trained Random Forest model. Every transaction scored before money moves.</p>
+    <div class="auth-feats">
+      <div class="auth-feat"><div class="feat-icon">🤖</div><span>Random Forest ML — 50,000 training samples</span></div>
+      <div class="auth-feat"><div class="feat-icon">🔍</div><span>XAI explanations on every flagged transaction</span></div>
+      <div class="auth-feat"><div class="feat-icon">📧</div><span>TF-IDF phishing email classifier</span></div>
+      <div class="auth-feat"><div class="feat-icon">🌐</div><span>Live threat intelligence feed</span></div>
+      <div class="auth-feat"><div class="feat-icon">🔒</div><span>One-click account freeze protection</span></div>
+    </div>
+  </div>
+  <div class="auth-right">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        <h2>Welcome back</h2>
+        <p>Sign in to your security dashboard</p>
+      </div>
+      <div id="err" class="err-msg hidden"></div>
+      <form id="form">
+        <div class="field"><label>Email Address</label><input id="email" type="email" value="demo@finshield.com" placeholder="you@example.com" required/></div>
+        <div class="field"><label>Password</label><input id="pw" type="password" value="demo123" placeholder="••••••••" required/></div>
+        <button type="submit" class="btn-login" id="btn">Sign In</button>
+      </form>
+      <div class="demo-hint">
+        <div class="hint-dot"></div>
+        <div><p>Demo Account</p><code>demo@finshield.com / demo123</code></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = document.getElementById("btn");
+  btn.textContent = "Signing in..."; btn.disabled = true;
+  const r = await fetch("/login", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({email: document.getElementById("email").value, password: document.getElementById("pw").value})
+  }).then(r => r.json()).catch(() => ({}));
+  if (r.success) { window.location.href = r.redirect; }
+  else { document.getElementById("err").textContent = r.message || "Invalid credentials"; document.getElementById("err").classList.remove("hidden"); btn.textContent = "Sign In"; btn.disabled = false; }
+});
+</script>
+</body>
+</html>

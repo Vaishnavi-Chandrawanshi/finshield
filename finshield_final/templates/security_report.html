@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Security Report{% endblock %}
+{% block page_title %}Security Health Report{% endblock %}
+{% block page_sub %}Full security overview — printable as PDF{% endblock %}
+{% block content %}
+<div style="max-width:860px;margin:0 auto">
+  <div class="card" style="margin-bottom:1.25rem;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(52,211,153,0.05));border-color:rgba(99,102,241,0.25)">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:1.2rem;font-weight:800;color:var(--text);letter-spacing:-0.03em">FinShield Security Health Report</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-top:4px" id="report-date">Generating...</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:2.5rem;font-weight:900;letter-spacing:-0.05em" id="overall-score">—</div>
+        <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Security Score</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="sec-head"><h3>📊 Score Breakdown</h3></div>
+    <div id="score-factors"></div>
+  </div>
+
+  <div style="display:flex;gap:1.25rem;margin-bottom:1.25rem">
+    <div class="card" style="flex:1"><div class="sec-head"><h3>💳 Transaction Summary</h3></div><div id="txn-summary"></div></div>
+    <div class="card" style="flex:1"><div class="sec-head"><h3>🚨 Risk Summary</h3></div><div id="risk-summary"></div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="sec-head"><h3>⚠️ Recent Security Events</h3></div>
+    <div id="recent-events"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="sec-head"><h3>✅ Recommendations</h3></div>
+    <div id="recommendations"></div>
+  </div>
+
+  <div style="text-align:center;padding:1rem">
+    <button onclick="window.print()" class="btn-primary" style="padding:0.75rem 2rem">🖨️ Print / Save as PDF</button>
+  </div>
+</div>
+<style>
+.rrow{display:flex;justify-content:space-between;align-items:center;padding:0.65rem 0;border-bottom:1px solid var(--border);font-size:0.82rem}
+.rrow:last-child{border-bottom:none}
+@media print{.sidebar,.topbar,.btn-primary{display:none!important}.content{padding:0!important}.card{border:1px solid #ccc!important;box-shadow:none!important}}
+</style>
+{% endblock %}
+{% block scripts %}
+<script>
+async function buildReport(){
+  const [user,stats,score,txns,alerts]=await Promise.all([
+    fetch("/api/user").then(r=>r.json()),
+    fetch("/api/stats").then(r=>r.json()),
+    fetch("/api/security-score-breakdown").then(r=>r.json()),
+    fetch("/api/transactions").then(r=>r.json()),
+    fetch("/api/alerts").then(r=>r.json()),
+  ]);
+
+  document.getElementById("report-date").textContent=`Generated: ${new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · ${user.account_number}`;
+
+  const sv=score.total||0;
+  const scoreEl=document.getElementById("overall-score");
+  scoreEl.textContent=sv;
+  scoreEl.style.color=sv>=75?"#059669":sv>=50?"#d97706":"#e11d48";
+
+  document.getElementById("score-factors").innerHTML=(score.factors||[]).map(f=>`
+    <div class="rrow">
+      <div><div style="font-weight:600;color:var(--text)">${f.name}</div><div style="font-size:0.72rem;color:var(--muted)">${f.tip}</div></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:100px;height:5px;background:var(--bg4);border-radius:99px;overflow:hidden"><div style="height:100%;width:${f.score/f.max*100}%;background:${f.score>=f.max*0.7?"#059669":f.score>0?"#d97706":"#e11d48"};border-radius:99px"></div></div>
+        <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--text)">${f.score}/${f.max}</span>
+        <span>${f.score>=f.max*0.7?"✅":f.score>0?"⚠️":"❌"}</span>
+      </div>
+    </div>`).join('');
+
+  const bd=stats.breakdown||{};
+  document.getElementById("txn-summary").innerHTML=`
+    <div class="rrow"><span style="color:var(--text2)">Total Transactions</span><strong style="font-family:'DM Mono',monospace">${stats.total}</strong></div>
+    <div class="rrow"><span style="color:var(--text2)">Completed Safely</span><strong style="color:var(--emerald);font-family:'DM Mono',monospace">${bd.safe||0}</strong></div>
+    <div class="rrow"><span style="color:var(--text2)">Flagged for Review</span><strong style="color:var(--amber);font-family:'DM Mono',monospace">${stats.flagged}</strong></div>
+    <div class="rrow"><span style="color:var(--text2)">Auto-Blocked</span><strong style="color:var(--red);font-family:'DM Mono',monospace">${stats.blocked}</strong></div>
+    <div class="rrow" style="border-bottom:none"><span style="color:var(--text2)">Account Balance</span><strong style="font-family:'DM Mono',monospace">$${parseFloat(user.balance||0).toLocaleString()}</strong></div>`;
+
+  document.getElementById("risk-summary").innerHTML=`
+    <div class="rrow"><span style="color:var(--text2)">Critical Events</span><strong style="color:var(--red);font-family:'DM Mono',monospace">${bd.critical||0}</strong></div>
+    <div class="rrow"><span style="color:var(--text2)">High Risk Events</span><strong style="color:var(--orange);font-family:'DM Mono',monospace">${bd.high||0}</strong></div>
+    <div class="rrow"><span style="color:var(--text2)">Medium Risk Events</span><strong style="color:var(--amber);font-family:'DM Mono',monospace">${bd.medium||0}</strong></div>
+    <div class="rrow"><span style="color:var(--text2)">Unread Alerts</span><strong style="color:${(user.unread_alerts||0)>0?"var(--orange)":"var(--emerald)"};font-family:'DM Mono',monospace">${user.unread_alerts||0}</strong></div>
+    <div class="rrow" style="border-bottom:none"><span style="color:var(--text2)">Two-Factor Auth</span><strong style="color:${user.two_fa_enabled?"var(--emerald)":"var(--red)"}">${user.two_fa_enabled?"✅ Enabled":"❌ Disabled"}</strong></div>`;
+
+  document.getElementById("recent-events").innerHTML=(alerts||[]).slice(0,5).map(a=>`
+    <div class="rrow">
+      <div class="alert-dot ${a.severity}" style="margin-top:0;flex-shrink:0"></div>
+      <div style="flex:1;margin-left:10px"><div style="font-size:0.82rem;font-weight:600;color:var(--text)">${a.title}</div><div style="font-size:0.72rem;color:var(--muted)">${(a.message||'').substring(0,90)}...</div></div>
+      <span style="font-size:0.7rem;color:var(--muted);white-space:nowrap;margin-left:1rem">${timeAgo(a.created_at)}</span>
+    </div>`).join('')||'<p style="color:var(--muted);font-size:0.82rem">No recent events.</p>';
+
+  const recs=[];
+  if(!user.two_fa_enabled) recs.push({icon:"🔐",title:"Enable Two-Factor Authentication",desc:"Add +20 points and prevent account takeover even if your password is stolen.",urgent:true});
+  if((stats.blocked||0)>0) recs.push({icon:"✅",title:`Review ${stats.blocked} blocked transaction(s)`,desc:"Confirm these blocks were correct.",urgent:false});
+  if((user.unread_alerts||0)>0) recs.push({icon:"🔔",title:`${user.unread_alerts} unread alert(s)`,desc:"Read your security alerts to stay informed.",urgent:true});
+  recs.push({icon:"📱",title:"Use Phishing Scanner regularly",desc:"Scan suspicious emails and URLs before clicking.",urgent:false});
+  recs.push({icon:"🔒",title:"Know your Freeze button",desc:"Instantly freeze your account from any page if you suspect fraud.",urgent:false});
+
+  document.getElementById("recommendations").innerHTML=recs.map(r=>`
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:0.875rem;background:${r.urgent?"rgba(244,63,94,0.05)":"var(--bg3)"};border:1px solid ${r.urgent?"rgba(244,63,94,0.2)":"var(--border)"};border-radius:10px;margin-bottom:0.6rem">
+      <span style="font-size:1.25rem;flex-shrink:0">${r.icon}</span>
+      <div style="flex:1"><div style="font-size:0.83rem;font-weight:700;color:${r.urgent?"var(--red)":"var(--text)"}">${r.title}</div><div style="font-size:0.75rem;color:var(--text2);margin-top:3px;line-height:1.5">${r.desc}</div></div>
+      ${r.urgent?'<span style="margin-left:auto;font-size:0.6rem;background:var(--red);color:#fff;padding:2px 8px;border-radius:99px;font-weight:800;white-space:nowrap;align-self:flex-start">ACTION NEEDED</span>':""}
+    </div>`).join('');
+}
+buildReport();
+</script>
+{% endblock %}

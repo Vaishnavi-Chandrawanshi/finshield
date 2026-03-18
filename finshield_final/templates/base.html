@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>FinShield — {% block title %}Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">🛡️</div>
+      <div class="sb-brand-text">
+        <div class="sb-name">FinShield</div>
+        <div class="sb-tag">AI Security Platform</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-section"><span>Monitor</span></div>
+      <a href="/dashboard"      class="nav-item {% if request.path=='/dashboard' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Dashboard
+      </a>
+      <a href="/transactions"   class="nav-item {% if request.path=='/transactions' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        Transactions
+      </a>
+      <a href="/alerts-page"    class="nav-item {% if request.path=='/alerts-page' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Alerts
+        <span class="nav-badge" id="nav-alert-badge" style="display:none"></span>
+      </a>
+      <a href="/threat-intel"   class="nav-item {% if request.path=='/threat-intel' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Threat Intel
+        <span style="font-size:0.55rem;background:#f43f5e;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800;margin-left:auto">NEW</span>
+      </a>
+      <div class="nav-section"><span>Tools</span></div>
+      <a href="/phishing"       class="nav-item {% if request.path=='/phishing' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Phishing Scanner
+      </a>
+      <a href="/devices"        class="nav-item {% if request.path=='/devices' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        Device Manager
+      </a>
+      <a href="/security-report" class="nav-item {% if request.path=='/security-report' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Security Report
+      </a>
+      <a href="/education"      class="nav-item {% if request.path=='/education' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+        Security Quiz
+      </a>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-av" id="sb-initial">A</div>
+      <div><div class="sb-av-name" id="sb-name">Loading...</div><div class="sb-av-role">Account Holder</div></div>
+      <a href="/logout" class="sb-logout" title="Logout">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </a>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="tb-title">{% block page_title %}Dashboard{% endblock %}</div>
+        <div class="tb-sub">{% block page_sub %}{% endblock %}</div>
+      </div>
+      <div class="tb-actions">
+        <div class="chip"><span class="chip-icon">🏦</span><span id="chip-acc">—</span></div>
+        <div class="chip"><span class="chip-icon">💰</span><strong id="chip-bal">—</strong></div>
+        <button class="btn-freeze" id="freeze-btn" onclick="toggleFreeze()">🔒 Freeze</button>
+      </div>
+    </div>
+    <div class="content">{% block content %}{% endblock %}</div>
+  </main>
+</div>
+<div id="toast" class="toast hidden"></div>
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

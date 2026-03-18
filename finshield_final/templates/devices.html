@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Devices{% endblock %}
+{% block page_title %}Device Manager{% endblock %}
+{% block page_sub %}Manage trusted devices that access your account{% endblock %}
+{% block content %}
+<div class="card" style="max-width:640px">
+  <div class="sec-head"><h3>Recognised Devices</h3></div>
+  <div id="device-list"><p style="color:#78716c;font-size:0.82rem">Loading...</p></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function load(){
+  const data = await fetch("/api/devices").then(r=>r.json());
+  document.getElementById("device-list").innerHTML = data.map(d=>`
+    <div class="device-card">
+      <div class="device-icon">${d.device_type==="mobile"?"📱":d.device_type==="laptop"?"💻":"🖥️"}</div>
+      <div style="flex:1">
+        <div class="device-name">${d.device_name}</div>
+        <div class="device-meta">${d.location} · Last seen ${timeAgo(d.last_seen)}</div>
+      </div>
+      <span class="trust-badge ${d.is_trusted?'trusted':'untrusted'}">${d.is_trusted?"✓ Trusted":"⚠️ Untrusted"}</span>
+      <div class="device-actions">
+        ${!d.is_trusted?`<button class="btn-primary" onclick="trust(${d.id},true,this)" style="font-size:0.73rem;padding:0.4rem 0.75rem">Trust</button>`:`<button class="btn-danger" onclick="trust(${d.id},false,this)">Remove Trust</button>`}
+      </div>
+    </div>`).join("")||'<p style="color:#78716c;font-size:0.82rem">No devices found.</p>';
+}
+async function trust(id, val, btn){
+  await fetch(`/api/devices/trust/${id}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({trust:val})});
+  showToast(val?"Device marked as trusted ✓":"Device trust removed","success");
+  load();
+}
+load();
+</script>
+{% endblock %}

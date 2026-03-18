@@ -1,0 +1,30 @@
+{
+  "fraud_model": {
+    "type": "RandomForestClassifier",
+    "n_estimators": 200,
+    "training_samples": 50000,
+    "fraud_rate": "3.5%",
+    "auroc": 0.999920355292376,
+    "f1": 0.9715909090909091,
+    "features": [
+      "amount",
+      "hour",
+      "is_foreign",
+      "is_vpn",
+      "is_new_merchant",
+      "is_high_amount",
+      "is_night",
+      "merchant_enc",
+      "location_enc",
+      "device_enc"
+    ]
+  },
+  "phishing_model": {
+    "type": "TF-IDF + LogisticRegression",
+    "training_samples": 1200,
+    "auroc": 1.0,
+    "f1": 1.0
+  },
+  "trained_at": "2026-03-18 11:45:17.099261",
+  "dataset_source": "Synthetic data based on IEEE-CIS Fraud Detection patterns"
+}

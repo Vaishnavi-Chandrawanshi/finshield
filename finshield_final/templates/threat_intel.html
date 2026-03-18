@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Threat Intelligence{% endblock %}
+{% block page_title %}Threat Intelligence{% endblock %}
+{% block page_sub %}Live financial fraud threat feed + account security controls{% endblock %}
+{% block content %}
+<div style="display:flex;gap:1.25rem;align-items:flex-start">
+  <div style="flex:1.5">
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="sec-head"><h3>🌐 Active Threat Feed</h3><span class="rbadge low">● Live</span></div>
+      <div id="threat-feed"><p style="color:var(--muted);font-size:0.82rem">Loading threats...</p></div>
+    </div>
+    <div class="card">
+      <div class="sec-head"><h3>📊 Your Spending Insights</h3></div>
+      <canvas id="spendChart" height="160" style="margin-bottom:1rem"></canvas>
+      <div id="spending-table"></div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;gap:1.25rem">
+    <div class="card">
+      <div class="sec-head"><h3>🔐 Two-Factor Authentication</h3></div>
+      <p style="font-size:0.8rem;color:var(--text2);line-height:1.6;margin-bottom:1rem">Enable 2FA to add a second verification step. Even if your password is stolen, attackers cannot access your account. Enabling adds <strong style="color:var(--emerald)">+20 points</strong> to your security score.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem;background:var(--bg3);border-radius:12px;border:1px solid var(--border)">
+        <div>
+          <div style="font-size:0.85rem;font-weight:700;color:var(--text)" id="tfa-label">Status: Loading...</div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:2px" id="tfa-sub">Checking...</div>
+        </div>
+        <button onclick="toggle2fa()" id="tfa-btn" class="btn-primary" style="min-width:90px">...</button>
+      </div>
+      <div id="tfa-msg" class="hidden" style="margin-top:0.75rem;font-size:0.78rem;color:var(--emerald);padding:0.6rem 0.875rem;background:rgba(52,211,153,0.08);border-radius:8px;border:1px solid rgba(52,211,153,0.2)"></div>
+    </div>
+    <div class="card">
+      <div class="sec-head"><h3>📈 2025 Fraud Statistics</h3></div>
+      <div id="stats-table">
+        <div class="stat-row"><span>Total fraud losses (2024)</span><span style="color:var(--red);font-family:'DM Mono',monospace;font-weight:800">$12.5B</span></div>
+        <div class="stat-row"><span>Average victim loss</span><span style="color:var(--orange);font-family:'DM Mono',monospace;font-weight:800">$1,200</span></div>
+        <div class="stat-row"><span>BEC fraud losses</span><span style="color:var(--red);font-family:'DM Mono',monospace;font-weight:800">$3B/yr</span></div>
+        <div class="stat-row"><span>Avg detection time</span><span style="color:var(--amber);font-family:'DM Mono',monospace;font-weight:800">77 days</span></div>
+        <div class="stat-row"><span>Finance phishing share</span><span style="color:var(--orange);font-family:'DM Mono',monospace;font-weight:800">27%</span></div>
+        <div class="stat-row" style="border-bottom:none"><span>Deepfake fraud increase</span><span style="color:var(--red);font-family:'DM Mono',monospace;font-weight:800">+300%</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-head"><h3>🛡️ Protect Yourself</h3></div>
+      <div class="tip-list">
+        <div class="tip-item"><div class="tip-num">1</div><div><strong>Enable 2FA</strong><p>Use an authenticator app, not SMS</p></div></div>
+        <div class="tip-item"><div class="tip-num">2</div><div><strong>Verify before wiring</strong><p>Call the requester on a known number</p></div></div>
+        <div class="tip-item"><div class="tip-num">3</div><div><strong>Check URLs carefully</strong><p>Hover before clicking suspicious links</p></div></div>
+        <div class="tip-item"><div class="tip-num">4</div><div><strong>Freeze when unsure</strong><p>One click stops all transactions</p></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid var(--border);font-size:0.8rem;color:var(--text2)}
+</style>
+{% endblock %}
+{% block scripts %}
+<script>
+const SEV_BG={critical:"rgba(244,63,94,0.08)",high:"rgba(251,146,60,0.08)",medium:"rgba(251,191,36,0.08)",low:"rgba(52,211,153,0.08)"};
+const SEV_BD={critical:"rgba(244,63,94,0.25)",high:"rgba(251,146,60,0.25)",medium:"rgba(251,191,36,0.25)",low:"rgba(52,211,153,0.25)"};
+
+async function loadThreats(){
+  const threats=await fetch("/api/threat-intel").then(r=>r.json()).catch(()=>[]);
+  document.getElementById("threat-feed").innerHTML=threats.map(t=>`
+    <div style="padding:1rem;background:${SEV_BG[t.severity]};border:1px solid ${SEV_BD[t.severity]};border-radius:12px;margin-bottom:0.75rem">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="rbadge ${t.severity}">${t.severity.toUpperCase()}</span>
+        <span style="font-size:0.7rem;background:rgba(99,102,241,0.15);color:var(--indigo2);padding:1px 8px;border-radius:99px;border:1px solid rgba(99,102,241,0.25)">${t.type}</span>
+        <span style="font-size:0.7rem;color:var(--muted);margin-left:auto">${t.date}</span>
+      </div>
+      <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:4px">${t.title}</div>
+      <div style="font-size:0.76rem;color:var(--text2);line-height:1.5">${t.desc}</div>
+      <div style="font-size:0.68rem;color:var(--muted);margin-top:6px">Source: ${t.source}</div>
+    </div>`).join('');
+}
+
+async function loadSpending(){
+  const data=await fetch("/api/spending-insights").then(r=>r.json()).catch(()=>[]);
+  if(!data.length) return;
+  const colors=["#7c3aed","#059669","#fb923c","#e11d48","#d97706","#38bdf8"];
+  new Chart(document.getElementById("spendChart"),{type:"doughnut",
+    data:{labels:data.map(d=>d.category),datasets:[{data:data.map(d=>d.total),backgroundColor:colors.slice(0,data.length),borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,cutout:"68%",plugins:{legend:{position:"right",labels:{color:"var(--text2)",font:{size:11},boxWidth:10}}}}});
+  document.getElementById("spending-table").innerHTML=data.map((d,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:${colors[i]};flex-shrink:0"></div>
+      <span style="font-size:0.8rem;color:var(--text2);flex:1">${d.category}</span>
+      <span style="font-size:0.72rem;color:var(--muted)">${d.count} txns</span>
+      <span style="font-size:0.82rem;font-weight:700;color:var(--text);font-family:'DM Mono',monospace">$${d.total.toLocaleString()}</span>
+      <span style="font-size:0.7rem;color:var(--muted);width:35px;text-align:right">${d.pct}%</span>
+    </div>`).join('');
+}
+
+async function load2FA(){
+  const u=await fetch("/api/user").then(r=>r.json()).catch(()=>({}));
+  const on=u.two_fa_enabled;
+  document.getElementById("tfa-label").textContent=`Status: ${on?"✅ Enabled":"❌ Disabled"}`;
+  document.getElementById("tfa-sub").textContent=on?"Your account has 2FA protection":"Enable to add +20 security points";
+  const btn=document.getElementById("tfa-btn");
+  btn.textContent=on?"Disable":"Enable 2FA";
+  if(on){btn.style.background="rgba(244,63,94,0.15)";btn.style.color="var(--red)";btn.style.boxShadow="none";}
+  else{btn.style.background="";btn.style.color="";btn.style.boxShadow="";}
+}
+
+async function toggle2fa(){
+  const r=await fetch("/api/toggle-2fa",{method:"POST"}).then(r=>r.json()).catch(()=>({}));
+  const msg=document.getElementById("tfa-msg");
+  msg.textContent=r.message||"Updated";
+  msg.classList.remove("hidden");
+  load2FA();
+  setTimeout(()=>msg.classList.add("hidden"),4000);
+}
+
+loadThreats(); loadSpending(); load2FA();
+</script>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Phishing Scanner{% endblock %}
+{% block page_title %}Phishing Scanner{% endblock %}
+{% block page_sub %}Paste any suspicious email or URL — AI will check it for fraud patterns instantly{% endblock %}
+{% block content %}
+<div class="phish-wrap">
+  <div class="phish-main">
+    <div class="card">
+      <div class="sec-head"><h3>Paste Email or URL</h3></div>
+      <textarea id="txt" class="phish-textarea" placeholder="Paste suspicious email body, URL, or SMS message here...
+
+Example:
+Dear Customer, your account is SUSPENDED. Verify immediately:
+http://bankofamerica-secure.tk/login?id=12345
+
+You have won $1,000,000 — confirm your SSN to claim."></textarea>
+      <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+        <button class="btn-primary" onclick="scan()">🔍 Scan for Phishing</button>
+        <div>
+          <div style="font-size:0.7rem;color:#78716c;margin-bottom:4px">Try an example:</div>
+          <div class="example-chips">
+            <button class="echip echip-red" onclick="ex('phish')">⚠️ Phishing Email</button>
+            <button class="echip echip-orange" onclick="ex('url')">🔗 Suspicious URL</button>
+            <button class="echip echip-green" onclick="ex('safe')">✅ Legitimate Email</button>
+          </div>
+        </div>
+      </div>
+      <div id="result" class="hidden"></div>
+    </div>
+  </div>
+
+  <div class="phish-side">
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title">🔎 5 Signs of Phishing</div>
+      <div class="tip-list">
+        <div class="tip-item"><div class="tip-num">1</div><div><strong>Suspicious sender</strong><p>Banks never email from Gmail, Yahoo, or .tk domains.</p></div></div>
+        <div class="tip-item"><div class="tip-num">2</div><div><strong>Urgency language</strong><p>"Act now", "24 hours", "account suspended" — classic manipulation.</p></div></div>
+        <div class="tip-item"><div class="tip-num">3</div><div><strong>Requests credentials</strong><p>No real bank will ever ask for your PIN or OTP via email.</p></div></div>
+        <div class="tip-item"><div class="tip-num">4</div><div><strong>Misspelled URLs</strong><p>paypa1.com, amazzon.com, chase-secure.tk — look carefully.</p></div></div>
+        <div class="tip-item"><div class="tip-num">5</div><div><strong>Too good to be true</strong><p>Free gifts, lottery wins, prize money — always a scam.</p></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 2024 Phishing Statistics</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem">
+          <span style="color:#78716c">Email phishing</span>
+          <strong style="color:#dc2626">38% of attacks</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem">
+          <span style="color:#78716c">Avg loss per victim</span>
+          <strong style="color:#ea580c">$1,200</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem">
+          <span style="color:#78716c">Reported cases (2024)</span>
+          <strong style="color:#ca8a04">3.4 million</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem">
+          <span style="color:#78716c">Finance sector targeted</span>
+          <strong style="color:#dc2626">27% of all cases</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const EX = {
+  phish: `Dear Valued Customer,
+
+We have detected SUSPICIOUS activity on your account. Your account has been SUSPENDED.
+
+CLICK IMMEDIATELY to verify: http://bankofamerica-secure-verify.tk/confirm?token=abc123
+
+You must act within 24 HOURS or your account will be permanently closed.
+
+Provide: Full name, SSN, Account number, PIN, Date of birth.
+
+Bank of America Security Team`,
+  url: `Check out this deal: http://amazon-gift-cards.xyz/free?promo=WIN2024
+Congratulations! You won a $500 Amazon gift card. Limited time — claim now!`,
+  safe: `Hi Alex,
+
+Your monthly statement for November 2024 is now available.
+
+Log in at chase.com to view it.
+
+Total this month: $2,341.50
+
+Questions? Call 1-800-935-9935.
+
+Chase Customer Service`
+};
+
+function ex(k){ document.getElementById("txt").value = EX[k]; }
+
+async function scan(){
+  const text = document.getElementById("txt").value.trim();
+  if(!text){ showToast("Please paste some text first","warn"); return; }
+  const d = await fetch("/api/check-phishing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})}).then(r=>r.json());
+  const el = document.getElementById("result");
+  el.className = "verdict-box";
+  el.style.borderColor = d.color;
+  el.style.background = d.score>70?"#fef2f2":d.score>40?"#fff7ed":"#f0fdf4";
+  el.innerHTML = `
+    <div class="verdict-title" style="color:${d.color}">${d.verdict==="PHISHING DETECTED"?"🚨":d.verdict==="SUSPICIOUS"?"⚠️":"✅"} ${d.verdict}</div>
+    <div class="verdict-score">Threat Score: <strong style="color:${d.color}">${d.score}/100</strong></div>
+    ${d.indicators.length?`<ul class="indicator-list">${d.indicators.map(i=>`<li>${i}</li>`).join("")}</ul>`:'<p style="font-size:0.78rem;color:#16a34a">✅ No suspicious patterns detected.</p>'}
+    <div class="verdict-advice">${d.safe?"This content appears safe. Always verify sender details independently before clicking any links.":"⚠️ Do NOT click any links. Do NOT provide personal information. Report to your bank immediately."}</div>`;
+}
+</script>
+{% endblock %}

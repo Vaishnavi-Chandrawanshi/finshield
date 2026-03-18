@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Security Dashboard{% endblock %}
+{% block page_sub %}Real-time AI monitoring — Random Forest ML active{% endblock %}
+{% block content %}
+
+<div class="kpi-grid">
+  <div class="kpi-card kpi-blue"><div class="kpi-glow"></div><div class="kpi-icon">💳</div><div class="kpi-tag">Total Transactions</div><div class="kpi-val" id="k-total">—</div><div class="kpi-sub">Last 30 days</div><div class="kpi-bar"><div class="kpi-bar-fill" id="kb-total" style="width:0%"></div></div></div>
+  <div class="kpi-card kpi-red"><div class="kpi-glow"></div><div class="kpi-icon">🚨</div><div class="kpi-tag">Threats Flagged</div><div class="kpi-val" id="k-flagged">—</div><div class="kpi-sub">By AI model</div><div class="kpi-bar"><div class="kpi-bar-fill" id="kb-flagged" style="width:0%"></div></div></div>
+  <div class="kpi-card kpi-orange"><div class="kpi-glow"></div><div class="kpi-icon">🛑</div><div class="kpi-tag">Auto-Blocked</div><div class="kpi-val" id="k-blocked">—</div><div class="kpi-sub">Before processing</div><div class="kpi-bar"><div class="kpi-bar-fill" id="kb-blocked" style="width:0%"></div></div></div>
+  <div class="kpi-card kpi-green"><div class="kpi-glow"></div><div class="kpi-icon">🛡️</div><div class="kpi-tag">Security Score</div><div class="kpi-val" id="k-score">—</div><div class="kpi-sub">Out of 100</div><div class="kpi-bar"><div class="kpi-bar-fill" id="kb-score" style="width:0%"></div></div></div>
+</div>
+
+<!-- ML Model Banner -->
+<div class="model-banner">
+  <div class="model-banner-left">
+    <div class="model-dot" id="mdot"></div>
+    <div><div class="model-title" id="mtitle">Loading model info...</div><div class="model-sub" id="msub"></div></div>
+  </div>
+  <div class="model-stats" id="mstats"></div>
+</div>
+
+<!-- Charts row -->
+<div style="display:flex;gap:1rem;margin-bottom:1.25rem">
+  <div class="card" style="flex:1.6">
+    <div class="sec-head"><h3>Risk Trend — Last 7 Days</h3><span class="rbadge low">● Live</span></div>
+    <canvas id="riskChart" height="110"></canvas>
+  </div>
+  <div class="card" style="flex:1">
+    <div class="sec-head"><h3>Threat Breakdown</h3></div>
+    <canvas id="donutChart" height="110"></canvas>
+    <div id="donut-legend" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- Score ring + heatmap -->
+<div style="display:flex;gap:1rem;margin-bottom:1.25rem">
+  <div class="card" style="flex:1">
+    <div class="sec-head"><h3>Security Score</h3><a href="/education" class="sec-link">Improve →</a></div>
+    <div class="score-ring-wrap">
+      <div class="score-ring" style="position:relative;width:100px;height:100px;flex-shrink:0">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#f0ece4" stroke-width="10"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#059669" stroke-width="10"
+                  stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="251"
+                  id="score-arc" style="transition:stroke-dashoffset 1s ease;transform:rotate(-90deg);transform-origin:50% 50%"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div class="score-ring-val" id="score-ring-val" style="color:#059669">—</div>
+          <div class="score-ring-sub">/100</div>
+        </div>
+      </div>
+      <div class="score-factors" id="score-factors"></div>
+    </div>
+  </div>
+  <div class="card" style="flex:1.5">
+    <div class="sec-head"><h3>30-Day Risk Heatmap</h3><small style="color:var(--muted);font-size:0.68rem">Hover for details</small></div>
+    <div class="heatmap-grid" id="heatmap"></div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:10px">
+      <span style="font-size:0.65rem;color:var(--muted)">Low</span>
+      <div style="display:flex;gap:3px">
+        <div style="width:11px;height:11px;border-radius:3px;background:var(--bg4)"></div>
+        <div style="width:11px;height:11px;border-radius:3px;background:rgba(251,191,36,0.35)"></div>
+        <div style="width:11px;height:11px;border-radius:3px;background:rgba(251,146,60,0.55)"></div>
+        <div style="width:11px;height:11px;border-radius:3px;background:rgba(244,63,94,0.6)"></div>
+        <div style="width:11px;height:11px;border-radius:3px;background:#f43f5e"></div>
+      </div>
+      <span style="font-size:0.65rem;color:var(--muted)">High</span>
+    </div>
+  </div>
+</div>
+
+<!-- Live feed + anomalies -->
+<div style="display:flex;gap:1rem;margin-bottom:1.25rem">
+  <div class="card" style="flex:1.2">
+    <div class="sec-head"><h3>⚡ Live Transaction Feed</h3><span class="rbadge low">● Streaming</span></div>
+    <div id="live-feed" style="max-height:220px;overflow-y:auto"></div>
+  </div>
+  <div class="card" style="flex:1">
+    <div class="sec-head"><h3>⚠️ Spending Anomalies</h3></div>
+    <div id="anomalies"></div>
+  </div>
+</div>
+
+<!-- Recent txns + alerts -->
+<div style="display:flex;gap:1rem">
+  <div class="card" style="flex:1.3">
+    <div class="sec-head"><h3>Recent Transactions</h3><a href="/transactions" class="sec-link">View all →</a></div>
+    <div id="recent-txns"></div>
+  </div>
+  <div class="card" style="flex:1">
+    <div class="sec-head"><h3>Security Alerts</h3><a href="/alerts-page" class="sec-link">View all →</a></div>
+    <div id="recent-alerts"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Live simulation
+const SIM = [
+  {n:"Amazon",a:45.99,r:4,l:"Online"},{n:"Starbucks",a:8.50,r:3,l:"New York, NY"},
+  {n:"Netflix",a:15.99,r:2,l:"Online"},{n:"⚠️ WIRE TRANSFER",a:4800,r:92,l:"Lagos, Nigeria"},
+  {n:"Uber",a:22.50,r:4,l:"Chicago, IL"},{n:"🚨 OFFSHORE ACC",a:9200,r:95,l:"Cayman Islands"},
+  {n:"Walmart",a:134,r:4,l:"Dallas, TX"},{n:"💸 Crypto Exchange",a:3800,r:86,l:"VPN/Unknown"},
+  {n:"Apple Store",a:99,r:5,l:"Online"},{n:"Shell Gas",a:62,r:5,l:"Houston, TX"},
+];
+function addLive(){
+  const m=SIM[Math.floor(Math.random()*SIM.length)];
+  const r=Math.max(1,Math.min(99,m.r+Math.floor(Math.random()*8-4)));
+  const c=r>=80?"#f43f5e":r>=60?"#fb923c":r>=35?"#fbbf24":"#34d399";
+  const lv=r>=80?"CRITICAL":r>=60?"HIGH":r>=35?"MEDIUM":"LOW";
+  const feed=document.getElementById("live-feed");
+  if(!feed)return;
+  const row=document.createElement("div");
+  row.className="live-row";
+  row.innerHTML=`
+    <span style="font-size:1rem;flex-shrink:0">${merchantIcon(m.n)}</span>
+    <div style="flex:1;min-width:0"><div class="live-merchant">${m.n}</div><div class="live-loc">${m.l} · just now</div></div>
+    <span class="rbadge ${lv.toLowerCase()}">${lv}</span>
+    <span style="font-size:0.78rem;font-weight:700;color:var(--text);white-space:nowrap;font-family:'JetBrains Mono',monospace">$${m.a.toFixed(2)}</span>
+    <span style="font-size:0.7rem;font-weight:800;font-family:'DM Mono',monospace;color:${c};width:24px;text-align:right">${r}</span>`;
+  feed.insertBefore(row,feed.firstChild);
+  if(feed.children.length>9)feed.removeChild(feed.lastChild);
+}
+setInterval(addLive,3800);
+addLive(); setTimeout(addLive,1000); setTimeout(addLive,2200);
+
+// Model banner
+async function loadModel(){
+  const m=await fetch("/api/model-info").then(r=>r.json()).catch(()=>({}));
+  const dot=document.getElementById("mdot");
+  if(m.trained){
+    dot.style.background="#34d399";
+    document.getElementById("mtitle").textContent="✅ Random Forest ML — Trained & Active";
+    document.getElementById("msub").textContent=`Trained on ${m.training_samples} transactions · scikit-learn RandomForestClassifier`;
+    document.getElementById("mstats").innerHTML=`
+      <div class="mstat"><div class="mstat-val">${m.auroc}</div><div class="mstat-lbl">AUROC</div></div>
+      <div class="mstat"><div class="mstat-val">${m.f1}</div><div class="mstat-lbl">F1 Score</div></div>
+      <div class="mstat"><div class="mstat-val">${m.training_samples}</div><div class="mstat-lbl">Train Samples</div></div>
+      <div class="mstat"><div class="mstat-val">${m.phishing_auroc}</div><div class="mstat-lbl">Phish AUROC</div></div>`;
+  } else {
+    dot.style.background="#fb923c"; dot.style.animation="none";
+    document.getElementById("mtitle").textContent="⚠️ Rule-Based Mode — Run: python ml/train.py to enable ML";
+    document.getElementById("msub").textContent="Models not trained yet. App uses rules until you run the trainer.";
+    document.getElementById("mstats").innerHTML=`<span style="font-size:0.78rem;color:var(--orange)">Run <code>python ml/train.py</code> to activate ML models</span>`;
+    const b=document.querySelector(".model-banner");
+    b.style.background="rgba(234,88,12,0.06)"; b.style.borderColor="rgba(234,88,12,0.25)";
+  }
+}
+
+async function load(){
+  const [stats,user,score,anomalies,txns,alerts]=await Promise.all([
+    fetch("/api/stats").then(r=>r.json()),
+    fetch("/api/user").then(r=>r.json()),
+    fetch("/api/security-score-breakdown").then(r=>r.json()),
+    fetch("/api/anomalies").then(r=>r.json()),
+    fetch("/api/transactions").then(r=>r.json()),
+    fetch("/api/alerts").then(r=>r.json()),
+  ]);
+
+  // KPIs
+  document.getElementById("k-total").textContent=stats.total;
+  document.getElementById("k-flagged").textContent=stats.flagged;
+  document.getElementById("k-blocked").textContent=stats.blocked;
+  document.getElementById("k-score").textContent=(user.security_score||0)+"/100";
+  setTimeout(()=>{
+    document.getElementById("kb-total").style.width=Math.min(100,stats.total/30*100)+"%";
+    document.getElementById("kb-flagged").style.width=Math.min(100,stats.flagged/(stats.total||1)*300)+"%";
+    document.getElementById("kb-blocked").style.width=Math.min(100,stats.blocked/(stats.total||1)*500)+"%";
+    document.getElementById("kb-score").style.width=(user.security_score||0)+"%";
+  },200);
+
+  // Risk chart
+  const labels=stats.trend.map(t=>{const d=new Date(t.date);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"});});
+  const vals=stats.trend.map(t=>t.avg_risk||10);
+  new Chart(document.getElementById("riskChart"),{type:"bar",data:{labels,datasets:[{label:"Risk Score",data:vals,
+    backgroundColor:vals.map(v=>v>60?"rgba(225,29,72,0.75)":v>35?"rgba(234,88,12,0.7)":"rgba(5,150,105,0.65)"),
+    borderColor:vals.map(v=>v>60?"#e11d48":v>35?"#ea580c":"#059669"),
+    borderWidth:1.5,borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#78716c",font:{size:11}}},
+              y:{grid:{color:"rgba(28,25,23,0.05)"},ticks:{color:"#78716c",font:{size:11}},max:100,min:0}}}});
+
+  // Donut chart
+  const bd=stats.breakdown||{};
+  new Chart(document.getElementById("donutChart"),{type:"doughnut",
+    data:{labels:["Safe","Medium","High","Critical"],datasets:[{
+      data:[bd.safe||0,bd.medium||0,bd.high||0,bd.critical||0],
+      backgroundColor:["#059669","#d97706","#ea580c","#e11d48"],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,cutout:"72%",plugins:{legend:{display:false}}}});
+  document.getElementById("donut-legend").innerHTML=
+    [["#059669","Safe",bd.safe||0],["#d97706","Medium",bd.medium||0],["#ea580c","High",bd.high||0],["#e11d48","Critical",bd.critical||0]]
+    .map(([c,l,v])=>`<div style="display:flex;align-items:center;gap:5px;font-size:0.7rem;color:var(--muted)"><span style="width:7px;height:7px;background:${c};border-radius:50%;display:inline-block"></span>${l}: <strong style="color:var(--text)">${v}</strong></div>`).join("");
+
+  // Score ring
+  const sv=score.total||0;
+  const col=sv>=75?"#059669":sv>=50?"#d97706":"#e11d48";
+  document.getElementById("score-ring-val").textContent=sv;
+  document.getElementById("score-ring-val").style.color=col;
+  document.getElementById("score-arc").style.stroke=col;
+  setTimeout(()=>{document.getElementById("score-arc").style.strokeDashoffset=251-(251*sv/100);},250);
+  document.getElementById("score-factors").innerHTML=(score.factors||[]).map(f=>`
+    <div class="factor-row">
+      <div class="factor-name" title="${f.tip}">${f.name}</div>
+      <div class="factor-bar"><div class="factor-fill" style="width:${f.score/f.max*100}%;background:${f.score>=f.max*0.7?"#059669":f.score>0?"#d97706":"#e11d48"}"></div></div>
+      <div class="factor-pts">${f.score}/${f.max}</div>
+    </div>`).join("");
+
+  // Heatmap
+  const hm=stats.heatmap||{};
+  const days=Object.keys(hm).sort().reverse().slice(0,30);
+  document.getElementById("heatmap").innerHTML=days.map(d=>{
+    const v=hm[d].max_risk;
+    const cls=v===0?"hm-0":v<25?"hm-1":v<50?"hm-2":v<75?"hm-3":"hm-4";
+    return `<div class="hm-cell ${cls}" title="${d}: ${v===0?"No activity":v+" risk score"}"></div>`;
+  }).join("");
+
+  // Anomalies
+  document.getElementById("anomalies").innerHTML=anomalies.length
+    ? anomalies.map(a=>`<div class="anomaly-card"><div class="anomaly-title">📈 ${a.category} +${a.deviation}%</div><div class="anomaly-msg">${a.message}</div></div>`).join("")
+    : '<p style="color:var(--muted);font-size:0.78rem">✅ No unusual spending patterns.</p>';
+
+  // Recent txns
+  document.getElementById("recent-txns").innerHTML=txns.slice(0,5).map(t=>`
+    <div class="txn-row">
+      <div class="txn-icon">${merchantIcon(t.merchant)}</div>
+      <div class="txn-info"><div class="txn-name">${t.merchant}</div><div class="txn-meta">${t.location}</div></div>
+      <div class="score-inline"><div class="score-track"><div class="score-fill ${(t.risk_level||'LOW').toLowerCase()}" style="width:${Math.round((t.risk_score||0)*100)}%"></div></div><div class="score-num">${Math.round((t.risk_score||0)*100)}</div></div>
+      <div class="rbadge ${(t.risk_level||'LOW').toLowerCase()}">${t.risk_level||'LOW'}</div>
+      <div class="txn-amt ${t.flagged?'flagged':''}">$${parseFloat(t.amount||0).toFixed(2)}</div>
+    </div>`).join("");
+
+  // Alerts
+  document.getElementById("recent-alerts").innerHTML=alerts.slice(0,4).map(a=>`
+    <div class="alert-row ${a.is_read?'':'unread'}" id="ar-${a.id}">
+      <div class="alert-dot ${a.severity}"></div>
+      <div style="flex:1"><div class="alert-title">${a.title}</div><div class="alert-msg">${a.message}</div></div>
+      ${!a.is_read?`<button class="mark-btn" onclick="markRead(${a.id},document.getElementById('ar-${a.id}'))">✓</button>`:''}
+    </div>`).join("");
+}
+
+load(); loadModel();
+</script>
+{% endblock %}

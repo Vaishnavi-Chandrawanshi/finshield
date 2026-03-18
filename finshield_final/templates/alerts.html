@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Alerts{% endblock %}
+{% block page_title %}Security Alerts{% endblock %}
+{% block page_sub %}All security events on your account{% endblock %}
+{% block content %}
+<div class="card">
+  <div id="alert-list"><p style="color:#78716c;font-size:0.82rem">Loading...</p></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function load(){
+  const data=await fetch("/api/alerts").then(r=>r.json());
+  document.getElementById("alert-list").innerHTML=data.length?data.map(a=>`
+    <div class="alert-row ${a.is_read?'':'unread'}" id="ar-${a.id}">
+      <div class="alert-dot ${a.severity}"></div>
+      <div style="flex:1">
+        <div class="alert-title">${a.title}</div>
+        <div class="alert-msg">${a.message}</div>
+        <div class="alert-meta">${timeAgo(a.created_at)} · ${a.severity.toUpperCase()}</div>
+      </div>
+      ${!a.is_read?`<button class="mark-btn" onclick="markRead(${a.id},document.getElementById('ar-${a.id}'))">Mark read</button>`:'<span class="read-tag">✓ read</span>'}
+    </div>`).join(""):'<p style="color:#78716c;font-size:0.82rem">No alerts. Your account looks secure ✅</p>';
+}
+load();
+</script>
+{% endblock %}

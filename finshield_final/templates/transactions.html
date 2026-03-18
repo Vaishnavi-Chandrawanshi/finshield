@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Transactions{% endblock %}
+{% block page_title %}Transaction Monitor{% endblock %}
+{% block page_sub %}AI risk score on every transaction — click any row to see XAI breakdown{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:1.25rem">
+  <div class="sec-head">
+    <h3>All Transactions</h3>
+    <div class="filter-tabs">
+      <button class="ftab active" onclick="filterTxn('all',this)">All</button>
+      <button class="ftab" onclick="filterTxn('flagged',this)">⚠️ Flagged</button>
+      <button class="ftab" onclick="filterTxn('blocked',this)">🛑 Blocked</button>
+    </div>
+  </div>
+  <div id="txn-list"></div>
+</div>
+
+<div id="xai-panel" class="hidden" style="margin-bottom:1.25rem">
+  <div class="card">
+    <div class="sec-head">
+      <h3 id="xai-title">XAI Breakdown</h3>
+      <button onclick="document.getElementById('xai-panel').classList.add('hidden')" class="btn-ghost" style="padding:0.28rem 0.7rem;font-size:0.72rem">✕ Close</button>
+    </div>
+    <div id="xai-content"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="sec-head"><h3>🔬 Analyze a New Transaction</h3></div>
+  <div class="form-grid">
+    <div class="fld"><label>Merchant Name</label><input id="a-merchant" placeholder="e.g. Amazon"/></div>
+    <div class="fld"><label>Amount ($)</label><input id="a-amount" type="number" placeholder="150"/></div>
+    <div class="fld"><label>Location</label><input id="a-location" placeholder="New York, NY"/></div>
+    <div class="fld"><label>Device</label><input id="a-device" placeholder="iPhone App"/></div>
+  </div>
+  <button class="btn-primary" onclick="analyze()">🔍 Run AI Analysis</button>
+  <div id="analyze-result" class="hidden" style="margin-top:1rem"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let allTxns = [];
+const txnMap = new Map();
+
+async function loadTxns(){
+  allTxns = await fetch("/api/transactions").then(r=>r.json()).catch(()=>[]);
+  allTxns.forEach((t,i) => txnMap.set(i,t));
+  render(allTxns);
+}
+
+function render(list){
+  if(!list.length){ document.getElementById("txn-list").innerHTML='<p style="color:var(--muted);font-size:0.82rem;padding:0.75rem">No transactions match this filter.</p>'; return; }
+  document.getElementById("txn-list").innerHTML = list.map(t => {
+    const idx = allTxns.indexOf(t);
+    const score = Math.round((t.risk_score||0)*100);
+    const level = (t.risk_level||'LOW').toLowerCase();
+    return `<div class="txn-row clickable" data-idx="${idx}" onclick="showXai(${idx})">
+      <div class="txn-icon">${merchantIcon(t.merchant)}</div>
+      <div class="txn-info"><div class="txn-name">${t.merchant||'—'}</div><div class="txn-meta">${t.location||''} · ${t.device||''}</div></div>
+      <div class="score-inline"><div class="score-track"><div class="score-fill ${level}" style="width:${score}%"></div></div><div class="score-num">${score}</div></div>
+      <div class="rbadge ${level}">${t.risk_level||'LOW'}</div>
+      <div class="txn-amt ${t.flagged?'flagged':''}">$${parseFloat(t.amount||0).toFixed(2)}</div>
+      <div class="sbadge ${t.status||'completed'}">${(t.status||'completed').toUpperCase()}</div>
+      <div class="txn-time">${timeAgo(t.timestamp)}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterTxn(type,btn){
+  document.querySelectorAll(".ftab").forEach(b=>b.classList.remove("active")); btn.classList.add("active");
+  if(type==="all") render(allTxns);
+  else if(type==="flagged") render(allTxns.filter(t=>t.flagged));
+  else render(allTxns.filter(t=>t.status==="blocked"));
+}
+
+function showXai(idx){
+  const t=txnMap.get(idx);
+  if(!t) return;
+  let shap={};
+  try{ shap=JSON.parse(t.shap_values||"{}"); }catch{}
+  const entries=Object.entries(shap).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,6);
+  const score=Math.round((t.risk_score||0)*100);
+  const color=score>=80?"#f43f5e":score>=60?"#fb923c":score>=35?"#fbbf24":"#34d399";
+  const bgCol=score>=80?"rgba(244,63,94,0.08)":score>=60?"rgba(251,146,60,0.08)":score>=35?"rgba(251,191,36,0.08)":"rgba(52,211,153,0.08)";
+  const bdCol=score>=80?"rgba(244,63,94,0.25)":score>=60?"rgba(251,146,60,0.25)":score>=35?"rgba(251,191,36,0.25)":"rgba(52,211,153,0.25)";
+  document.getElementById("xai-title").textContent=`${t.merchant} — ${t.risk_level} Risk (${score}/100)`;
+  document.getElementById("xai-content").innerHTML=`
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+      <div style="padding:1rem 1.25rem;background:${bgCol};border:1px solid ${bdCol};border-radius:12px;flex:1;min-width:200px">
+        <div style="font-size:2.5rem;font-weight:900;color:${color};letter-spacing:-0.04em;line-height:1">${score}</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:4px">AI Risk Score / 100</div>
+        <div style="margin-top:8px;font-size:0.78rem;color:var(--text2);line-height:1.55">${t.explanation||'Analysis complete.'}</div>
+      </div>
+      <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:5px">
+        ${[['Merchant',t.merchant],['Amount','$'+parseFloat(t.amount||0).toFixed(2)],['Location',t.location],['Device',t.device],['Status',(t.status||'').toUpperCase()],['ID',t.txn_id]]
+          .map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:0.72rem;color:var(--muted)">${k}</span><span style="font-size:0.76rem;font-weight:600;color:var(--text);font-family:'DM Mono',monospace">${v||'—'}</span></div>`).join('')}
+      </div>
+    </div>
+    ${entries.length?`
+    <div style="font-size:0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem">XAI — Why AI Flagged This</div>
+    <div class="shap-list">${entries.map(([k,v])=>`
+      <div class="shap-row">
+        <div class="shap-label">${k}</div>
+        <div class="shap-track"><div class="shap-bar ${v>0?'shap-pos':'shap-neg'}" style="width:${Math.min(100,Math.abs(v)*300)}%"></div></div>
+        <div class="shap-val" style="color:${v>0?'#e11d48':'#059669'}">${v>0?'+':''}${v.toFixed(3)}</div>
+      </div>`).join('')}</div>
+    <p style="font-size:0.7rem;color:var(--muted2);margin-top:0.75rem">🔴 Positive = increased fraud risk · 🟢 Negative = reduced fraud risk</p>`:''}`;
+  const panel=document.getElementById("xai-panel");
+  panel.classList.remove("hidden");
+  panel.scrollIntoView({behavior:"smooth",block:"start"});
+  document.querySelectorAll(".txn-row").forEach(r=>r.style.background='');
+  const sel=document.querySelector(`[data-idx="${idx}"]`);
+  if(sel) sel.style.background="rgba(217,119,6,0.06)";
+}
+
+async function analyze(){
+  const body={merchant:document.getElementById("a-merchant").value,amount:document.getElementById("a-amount").value,location:document.getElementById("a-location").value,device:document.getElementById("a-device").value};
+  if(!body.merchant||!body.amount){showToast("Please enter merchant and amount","warn");return;}
+  const d=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json()).catch(()=>({}));
+  if(!d.risk_level){showToast("Analysis failed","error");return;}
+  const el=document.getElementById("analyze-result");
+  const entries=Object.entries(d.shap||{}).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1])).slice(0,6);
+  el.className="result-box"; el.style.borderColor=d.color+"44"; el.style.background=d.color+"11";
+  el.innerHTML=`<div class="result-action" style="color:${d.color}">${d.action} — ${d.risk_level}</div>
+    <div class="result-score">Score: <strong style="color:${d.color}">${d.risk_score}/100</strong> · ${d.txn_id}</div>
+    <div class="result-exp">${d.explanation}</div>
+    ${entries.length?`<div style="margin-top:10px;font-size:0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem">XAI Feature Contributions</div>
+    <div class="shap-list">${entries.map(([k,v])=>`<div class="shap-row"><div class="shap-label">${k}</div><div class="shap-track"><div class="shap-bar ${v>0?'shap-pos':'shap-neg'}" style="width:${Math.min(100,Math.abs(v)*300)}%"></div></div><div class="shap-val" style="color:${v>0?'#e11d48':'#059669'}">${v>0?'+':''}${v.toFixed(3)}</div></div>`).join('')}</div>`:''}`;
+  loadTxns();
+}
+loadTxns();
+</script>
+{% endblock %}
